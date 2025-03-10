@@ -58,31 +58,22 @@ def register_callbacks(app):
     
         if value:
         # Fetch data from the API
-            url = f'https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol={value}&apikey=75R803GKTBBIARXF&datatype=csv'
+            url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={value}&apikey=75R803GKTBBIARXF&datatype=csv'
             response = requests.get(url)
         
             if response.status_code == 200:
                 df = pd.read_csv(BytesIO(response.content))
-            
+                print(df)
+
             # Convert 'timestamp' to datetime
                 df['timestamp'] = pd.to_datetime(df['timestamp'])
-                df = df[(df['timestamp'].dt.year >= 2024) & (df['timestamp'].dt.year <= 2025)]
 
-
-            # Group by month and get the first entry for each month
-                df['month'] = df['timestamp'].dt.to_period('M')
-                df = df.groupby('month').first().reset_index()
-
-            # Convert 'month' back to timestamp for plotting
-                df['timestamp'] = df['month'].dt.to_timestamp()
-                df = df.drop(columns=['month'])
-
-            # Filter to the last 12 months
-                df = df.head(12)
+            # Get the last 30 days based on the most recent date
+                df = df.sort_values(by='timestamp', ascending=False).head(30)
 
             # Plotting the graph
                 fig = px.line(df, x='timestamp', y='close',
-                          title=f'{value} Stock Prices Over the Last 12 Months')
+                          title=f'{value} Stock Prices Over the Last 30 Days')
                 fig.update_traces(mode='lines+markers')
                 fig.update_layout(xaxis_title='Date', yaxis_title='Close Price')
             else:
