@@ -1,7 +1,6 @@
 from dash.dependencies import Input, Output, State
 from dash import html
 import pandas as pd
-from dash import Dash, html, dcc, callback, Output, Input
 import requests
 from io import BytesIO
 import plotly.express as px
