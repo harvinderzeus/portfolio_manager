@@ -5,6 +5,10 @@ from dash import Dash, html, dcc, callback, Output, Input
 import requests
 from io import BytesIO
 import plotly.express as px
+import upload_to_blob as ub
+import stocks
+from datetime import datetime, timedelta
+
 
 
 def register_callbacks(app):
@@ -48,6 +52,27 @@ def register_callbacks(app):
             ])
 
 
+<<<<<<< Updated upstream
+=======
+                html.H4("Portfolio Data"),
+                dash_table.DataTable(
+                    id='portfolio-table',
+                    columns=[
+                        {"name": "Ticker", "id": "Ticker"},
+                        {"name": "Volume", "id": "Volume"}
+                    ],
+                    data=[],  # Initially empty
+                    style_table={'width': '75%', 'align-items': 'center'}
+                ),
+                html.Button(
+                        'Generate Report', 
+                        id='generate-report', 
+                        n_clicks=0,
+                        style={"margin-left": "auto", "height": "30px", "width": "20%" }
+                    ),
+                html.Div("Generate-Data-Report",id="gen-done",style={"display":"None"})
+    ])
+>>>>>>> Stashed changes
 
     @app.callback(
     Output('stock-graph', 'figure'),
@@ -57,6 +82,7 @@ def register_callbacks(app):
         fig = px.line()  # Empty figure as a fallback
     
         if value:
+<<<<<<< Updated upstream
         # Fetch data from the API
             url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={value}&apikey=75R803GKTBBIARXF&datatype=csv'
             response = requests.get(url)
@@ -80,3 +106,57 @@ def register_callbacks(app):
                 print(f"Error fetching data: {response.status_code}")
     
         return fig
+=======
+            df = stocks.get_stocks(value=value)
+            df = df.sort_values(by='Date', ascending=False).head(30)
+            fig = px.line(df, x='timestamp', y='close',
+                              title=f'{value} Stock Prices Over the Last 30 Days')
+            fig.update_traces(mode='lines+markers')
+            fig.update_layout(xaxis_title='Date', yaxis_title='Close Price')
+
+        return fig
+        
+    @app.callback(
+        Output('portfolio-table', 'data'),
+        Input('submit-val', 'n_clicks'),
+        State('company-dropdown-tab2', 'value'),
+        State('Volume', 'value'),
+        prevent_initial_call=True
+    )
+    def update_portfolio(n_clicks, ticker, volume):
+        global share_portfolio 
+        
+        if ticker and volume:
+            new_data = pd.DataFrame([{"Ticker": ticker, "Volume": volume}])
+            share_portfolio = pd.concat(
+                [share_portfolio, new_data], ignore_index=True)
+        return share_portfolio.to_dict('records')
+
+    @app.callback(
+        Output('gen-done','children'),
+        Output('gen-done','style'),
+        Input('generate-report', 'n_clicks'),
+
+        prevent_initial_call=True
+    )
+    def update_blob(n_clicks):
+        print(share_portfolio.head())
+        if not share_portfolio.empty:
+            ub.upload_portfolio_to_blob_storage(share_portfolio)
+            for index, row in share_portfolio.iterrows():
+                ticker = row['Ticker']
+                df = stocks.get_stocks(ticker)
+                print(df.head())
+                # Sort the DataFrame by timestamp in descending order (latest first)
+                df = df.sort_values(by='Date', ascending=False)
+                # Get the last 100 stock trading days (assuming data is sorted by 'timestamp')
+                df = df.head(100)
+                print(df.head())
+                ub.upload_ticker_record_to_blob_storage(df=df, ticker=ticker)
+                
+            return html.Div("uploaded"),{"display":"block"}
+        else:
+            return html.Div("empty"),{"display":"block"}
+        
+    
+>>>>>>> Stashed changes
