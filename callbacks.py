@@ -1,6 +1,7 @@
 from dash.dependencies import Input, Output, State
 from dash import html
 import pandas as pd
+from dash import Dash, html, dcc, callback, Output, Input, dash_table
 import requests
 from io import BytesIO
 import plotly.express as px
@@ -9,6 +10,24 @@ import stocks
 from datetime import datetime, timedelta
 
 
+# Read CSV file
+df = pd.read_csv('./data/listoftickers.csv')
+
+df.rename(columns={
+    "S.No.": "SNo",
+    "Company Name": "Company",
+    "Ticker": "Ticker",
+    "Sector": "Sector"
+}, inplace=True)
+
+# Format the dropdown options
+dropdown_options = [
+    {"label": f"{row['Company']} ({row['Ticker']})", "value": row['Ticker']}
+    for _, row in df.iterrows()
+]
+
+# Initialize portfolio DataFrame
+share_portfolio = pd.DataFrame(columns=["Ticker", "Volume"])
 
 def register_callbacks(app):
     df = pd.read_csv('./data/listoftickers.csv')
@@ -46,13 +65,34 @@ def register_callbacks(app):
             ])
         elif tab == 'tab-2':
             return html.Div([
-                html.H3('Tab content 2'),
+                html.H3('Portfolio Manipulation'),
 
-            ])
+                # Flexbox for proper alignment of elements
+                html.Div([
+                    dcc.Dropdown(
+                        id="company-dropdown-tab2",
+                        options=dropdown_options,  # Dropdown includes all tickers
+                        placeholder="Select Stocks",
+                        style={"width": "40%", "margin-right": "10px"}  # Adds spacing
+                    ),
+                    dcc.Input(
+                        id='Volume',
+                        type="number",
+                        placeholder="Enter Volume",
+                        min=1,
+                        max=100,
+                        style={"width": "20%", "height": "30px"}
+                    ),
+                    html.Button(
+                        'Submit', 
+                        id='submit-val', 
+                        n_clicks=0,
+                        style={"margin-left": "auto", "height": "30px", "width": "20%" }
+                    )
+                ], style={'display': 'flex', 'align-items': 'center', 'justify-content': 'space-between', 'width': '100%'}),
 
+                html.Br(),
 
-<<<<<<< Updated upstream
-=======
                 html.H4("Portfolio Data"),
                 dash_table.DataTable(
                     id='portfolio-table',
@@ -69,9 +109,10 @@ def register_callbacks(app):
                         n_clicks=0,
                         style={"margin-left": "auto", "height": "30px", "width": "20%" }
                     ),
-                html.Div("Generate-Data-Report",id="gen-done",style={"display":"None"})
+                html.Div("Generation is done",id="gen-done",style={"display":"None"}),
     ])
->>>>>>> Stashed changes
+
+
 
     @app.callback(
     Output('stock-graph', 'figure'),
@@ -81,34 +122,10 @@ def register_callbacks(app):
         fig = px.line()  # Empty figure as a fallback
     
         if value:
-<<<<<<< Updated upstream
-        # Fetch data from the API
-            url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={value}&apikey=75R803GKTBBIARXF&datatype=csv'
-            response = requests.get(url)
-        
-            if response.status_code == 200:
-                df = pd.read_csv(BytesIO(response.content))
-                print(df)
 
-            # Convert 'timestamp' to datetime
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-
-            # Get the last 30 days based on the most recent date
-                df = df.sort_values(by='timestamp', ascending=False).head(30)
-
-            # Plotting the graph
-                fig = px.line(df, x='timestamp', y='close',
-                          title=f'{value} Stock Prices Over the Last 30 Days')
-                fig.update_traces(mode='lines+markers')
-                fig.update_layout(xaxis_title='Date', yaxis_title='Close Price')
-            else:
-                print(f"Error fetching data: {response.status_code}")
-    
-        return fig
-=======
             df = stocks.get_stocks(value=value)
             df = df.sort_values(by='Date', ascending=False).head(30)
-            fig = px.line(df, x='timestamp', y='close',
+            fig = px.line(df, x='Date', y='Close',
                               title=f'{value} Stock Prices Over the Last 30 Days')
             fig.update_traces(mode='lines+markers')
             fig.update_layout(xaxis_title='Date', yaxis_title='Close Price')
@@ -157,5 +174,4 @@ def register_callbacks(app):
         else:
             return html.Div("empty"),{"display":"block"}
         
-    
->>>>>>> Stashed changes
+
