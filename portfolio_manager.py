@@ -1,6 +1,6 @@
 from dash import Dash, html, dcc, callback, Output, Input
 from static.portfolio import portfolio_entry, render_portfolio
-from tabs.stocks_tab import stocks_graph, update_graph
+from tabs.stocks_tab import stocks_graph
 from tabs.var_analysis_tab import analysis_portfolio
 
 import dash
