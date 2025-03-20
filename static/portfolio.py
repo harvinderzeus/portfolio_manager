@@ -1,23 +1,22 @@
 from dash import Dash, html, dcc, callback, Output, Input, dash_table, State
 from functions.ticker_options import get_ticker_dropdown_options
 import pandas as pd
-
+import plotly.express as px
 
 # Portfolio DataFrame
 portfolio = pd.DataFrame(columns=['Ticker', 'Volume'])
-
 
 def portfolio_entry():
     return html.Div([
         html.H3('Portfolio Manipulation'),
 
-        # Flexbox for proper alignment of elements
+        # Input section with flexbox for alignment
         html.Div([
             dcc.Dropdown(
                 id="dropdown_company_portfolio",
-                options=get_ticker_dropdown_options(),  # Dropdown includes all tickers
+                options=get_ticker_dropdown_options(),  # Now correctly fetching options
                 placeholder="Select Stocks",
-                style={"width": "100%", "margin-right": "10px"}
+                style={"width": "90.5%", "margin-right": "10px"}
             ),
             dcc.Input(
                 id='Volume',
@@ -25,76 +24,89 @@ def portfolio_entry():
                 placeholder="Enter Volume",
                 min=1,
                 max=100,
-                style={"width": "20%", "height": "30px"}
+                style={"width": "20%", "height": "30px", "textAlign": "center"}
             ),
-            html.Button(
-                'Submit',
-                id='submit-val',
-                n_clicks=0,
-                style={"margin-left": "10px", "height": "30px",
-                       "width": "10%", "margin-right": "10px"}
-            ),
-            html.Button('Clear',
-                        id='clear-btn',
-                        n_clicks=0,
-                        style={"margin-left": "auto", "height": "30px", "width": "10%", "margin-right": "10px"})
-        ], style={'display': 'flex', 'align-items': 'center', 'justify-content': 'space-between', 'width': '70%'}),
+            html.Button('Submit', id='submit-val', n_clicks=0, style={"height": "30px", "width": "10%"}),
+            html.Button('Clear', id='clear-btn', n_clicks=0, style={"height": "30px", "width": "10%", "margin-left": "10px"})
+        ], style={'display': 'flex', 'align-items': 'center', 'justify-content': 'space-between', 'width': '80%'}),
 
         html.Br(),
 
-        html.H4("Portfolio Data"),
-        dash_table.DataTable(
-            id='portfolio-table',
-            columns=[
-                {"name": "Ticker", "id": "Ticker"},
-                {"name": "Volume", "id": "Volume"}
-            ],
-            data=[],  # Initially empty
-            style_table={'width': '50%', 'align-items': 'center'}
-        ),
+        # Portfolio Data and Pie Chart Side by Side
+        html.Div([
+            html.Div([
+                html.H4("Portfolio Data", style={'text-align': 'left'}),
+                dash_table.DataTable(
+                    id='portfolio-table',
+                    columns=[
+                        {"name": "Ticker", "id": "Ticker"},
+                        {"name": "Volume", "id": "Volume"}
+                    ],
+                    data=[],  # Initially empty
+                    style_table={'width': '100%'},  # Adjusted width
+                    style_cell={
+                        'textAlign': 'center',
+                        'fontSize': '14px',
+                        'padding': '10px'
+                    },
+                ),
+            ], style={'width': '50%', 'padding': '10px'}),
+
+            html.Div([
+                html.H4("Portfolio Distribution", style={'text-align': 'left'}),
+                dcc.Graph(id='portfolio-pie-chart', figure={})  # Ensures figure initializes correctly
+            ], style={'width': '50%', 'padding': '10px'})
+        ], style={'display': 'flex', 'justify-content': 'space-between', 'align-items': 'flex-start', 'width': '100%'}),
+
         dcc.Store(id='portfolio-store', data=[], storage_type='session'),
-
-
     ])
 
-# Callback to manage portfolio updates
-
-
+# Callback to update portfolio data
 @callback(
-    Output('portfolio-table', 'data', allow_duplicate=True),
-    # Output updated portfolio to the store
-    Output('portfolio-store', 'data', allow_duplicate=True),
+    [Output('portfolio-table', 'data'),
+     Output('portfolio-store', 'data')],
     Input('submit-val', 'n_clicks'),
     State('dropdown_company_portfolio', 'value'),
     State('Volume', 'value'),
-    # Get current portfolio data from the store
     State('portfolio-store', 'data'),
     prevent_initial_call=True
 )
 def render_portfolio(n_clicks, ticker, volume, existing_portfolio):
-
-    # If portfolio is None (i.e., no data), initialize it as an empty list
     if existing_portfolio is None:
         existing_portfolio = []
 
-    # Check if both ticker and volume are valid (i.e., not None or empty)
     if ticker and volume:
-        # Add new entry to the portfolio
-        new_data = {"Ticker": ticker, "Volume": volume}
-        existing_portfolio.append(new_data)
+        # Remove previous entry if ticker exists (to update volume)
+        existing_portfolio = [entry for entry in existing_portfolio if entry['Ticker'] != ticker]
+        existing_portfolio.append({"Ticker": ticker, "Volume": volume})
 
-    # Return the updated portfolio data for both the table and the store
     return existing_portfolio, existing_portfolio
 
-# Callback to clear the portfolio
-
-
+# Callback to update pie chart separately
 @callback(
-    Output('portfolio-table', 'data'),
-    Output('portfolio-store', 'data'),  # Clear the data in the store as well
+    Output('portfolio-pie-chart', 'figure'),
+    Input('portfolio-store', 'data')
+)
+def update_pie_chart(existing_portfolio):
+    if not existing_portfolio:
+        return {}
+
+    portfolio_df = pd.DataFrame(existing_portfolio)
+    pie_fig = px.pie(portfolio_df, values='Volume', names='Ticker',
+             hover_data={'Volume': True})
+
+    pie_fig.update_traces(textposition='inside', textinfo='label+percent')
+ 
+ #px.pie(portfolio_df, names='Ticker', values='Volume', values = "Ticker")
+    return pie_fig
+
+# Callback to clear the portfolio
+@callback(
+    [Output('portfolio-table', 'data', allow_duplicate= True),
+     Output('portfolio-store', 'data', allow_duplicate= True),
+     Output('portfolio-pie-chart', 'figure', allow_duplicate= True)],
     Input('clear-btn', 'n_clicks'),
     prevent_initial_call=True
 )
 def clear_portfolio(n_clicks):
-    # Clear the portfolio stored in dcc.Store
-    return [], []  # Empty the data in both the table and store
+    return [], [], {}
